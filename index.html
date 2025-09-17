@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Chamados de Incentivos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonte Inter para um visual moderno -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilização base e scrollbar customizada */
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        /* Animação para o modal */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        <!-- Cabeçalho -->
+        <header class="mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">Painel de Acompanhamento de Chamados</h1>
+            <p class="text-gray-400 mt-2">Visualize, filtre e edite os chamados de incentivos de forma interativa.</p>
+        </header>
+
+        <!-- Filtros e Busca -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-800 rounded-lg shadow-md">
+            <!-- Filtro por Status -->
+            <div>
+                <label for="statusFilter" class="block text-sm font-medium text-gray-300 mb-1">Filtrar por Status</label>
+                <select id="statusFilter" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></select>
+            </div>
+            <!-- Filtro por Focal -->
+            <div>
+                <label for="focalFilter" class="block text-sm font-medium text-gray-300 mb-1">Filtrar por Focal</label>
+                <select id="focalFilter" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></select>
+            </div>
+            <!-- Campo de Busca -->
+            <div>
+                <label for="searchInput" class="block text-sm font-medium text-gray-300 mb-1">Buscar por ID ou Colaborador</label>
+                <input type="text" id="searchInput" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Ex: HRC1173520...">
+            </div>
+        </div>
+
+        <!-- Tabela de Chamados -->
+        <div class="bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700/50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">ID do Chamado</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Colaborador</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Nome do Focal</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Data de Abertura</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketTableBody" class="divide-y divide-gray-700">
+                        <!-- Linhas da tabela serão inseridas aqui pelo JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Edição de Chamado -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden transition-opacity duration-300">
+        <div id="modalContent" class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4 transform transition-all duration-300 modal-enter">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3">
+                <h2 class="text-2xl font-semibold text-white">Detalhes do Chamado: <span id="modalTicketId" class="text-blue-400"></span></h2>
+                <button id="closeModal" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <form id="editForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Campos não editáveis -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Colaborador</label>
+                        <p id="modalColaborador" class="mt-1 text-gray-400 bg-gray-700/50 p-2 rounded-md truncate"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Matrícula</label>
+                        <p id="modalMatricula" class="mt-1 text-gray-400 bg-gray-700/50 p-2 rounded-md"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Data de Abertura</label>
+                        <p id="modalDataAbertura" class="mt-1 text-gray-400 bg-gray-700/50 p-2 rounded-md"></p>
+                    </div>
+                     <!-- Campos Editáveis -->
+                    <div>
+                        <label for="modalStatus" class="block text-sm font-medium text-gray-300">Status do Chamado</label>
+                        <select id="modalStatus" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                    <div>
+                        <label for="modalFocal" class="block text-sm font-medium text-gray-300">Nome do Focal</label>
+                        <select id="modalFocal" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                     <div>
+                        <label for="modalArea" class="block text-sm font-medium text-gray-300">Área Responsável</label>
+                        <input type="text" id="modalArea" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="mt-6 space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">Solicitação Original</label>
+                        <p id="modalSolicitacao" class="mt-1 text-gray-400 bg-gray-700/50 p-2 rounded-md h-24 overflow-y-auto"></p>
+                    </div>
+                    <div>
+                        <label for="modalResolucao" class="block text-sm font-medium text-gray-300">Informações de Resolução</label>
+                        <textarea id="modalResolucao" rows="4" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label for="modalObservacao" class="block text-sm font-medium text-gray-300">Observação</label>
+                        <textarea id="modalObservacao" rows="4" class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+                
+                <div class="mt-8 flex justify-end gap-4">
+                    <button type="button" id="cancelModal" class="py-2 px-4 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded-md transition">Cancelar</button>
+                    <button type="submit" class="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DADOS DOS CHAMADOS ---
+            // Estes dados foram extraídos dos arquivos CSV que você enviou.
+            // Você pode editar ou adicionar mais chamados diretamente aqui.
+            const ticketsData = [
+                { id: "HRC1150762", colaborador: "Lucas Rodrigues Da Cruz", matricula: "50038", dataAbertura: "2025-06-16", solicitacao: "O ex-colaborador Lucas Rodrigues Da Cruz (50038), desligado em 03/06/2025, entrou em contato, pois não identificou o pagamento do incentivo de dia das mães em sua rescisão.", observacao: "A única loja do RJ que ganhou o incentivo Desafio Mães & Namorados foi Nova Iguaçu, da praça RJ3.", nomeFocal: "Não Atribuído", resolucao: "", status: "Pendente", areaResponsavel: "RH" },
+                { id: "HRC1173520", colaborador: "Caio Da Silva Soares", matricula: "53098", dataAbertura: "2025-09-03", solicitacao: "Olá, pessoal! O colaborador nos aciona questionando sobre o incentivo das mães.", observacao: "Podem ajudar o colaborador referente ao incentivo de mães?", nomeFocal: "Fabiana Nunes", resolucao: "Pagamento já realizado ao colaborador.", status: "Resolvido", areaResponsavel: "Vendas Diretas" },
+                { id: "HRC1173940", colaborador: "Marcela Nascimento Rabelo", matricula: "23353", dataAbertura: "2025-09-04", solicitacao: "Ex-colaboradora aciona questionando sobre o pagamento de incentivo de dia das mães. Não localizei em nenhuma das planilhas.", observacao: "", nomeFocal: "Fabiana Nunes", resolucao: "Ex-colaboradora não fazia parte do time de VD do Varejo Próprio.", status: "Resolvido", areaResponsavel: "Vendas Diretas" },
+                { id: "HRC1151827", colaborador: "Rafaela Francisca Da Silva", matricula: "35031", dataAbertura: "2025-06-21", solicitacao: "Colaboradora nos aciona informando que não recebeu o incentivo de dia das Mães, o qual era elegível.", observacao: "", nomeFocal: "Juliana Lomeu", resolucao: "", status: "Aberto", areaResponsavel: "RH - Incentivos" },
+                { id: "HRC1172657", colaborador: "Jeciquele Ferreira", matricula: "49914", dataAbertura: "2025-09-01", solicitacao: "Ex-colaboradora alega pendência no pagamento Incentivo Corridinha (cartão presente).", observacao: "Essa ex-colab não é de lojas próprias. Acredito que seja de VD, por favor, verifique com a Fabi Nunes", nomeFocal: "Não Atribuído", resolucao: "", status: "Em Análise", areaResponsavel: "Aero" },
+                { id: "HRC1172667", colaborador: "Leticia Cristina Salla Porto", matricula: "49805", dataAbertura: "2025-09-01", solicitacao: "Confirmar a elegibilidade referente ao recebimento de premio sobre Bônus de mães.", observacao: "Tanto ciclo 10 como bônus de mãe, não localizei no SAP.", nomeFocal: "Juliana Lomeu", resolucao: "", status: "Em Análise", areaResponsavel: "Aero" },
+            ];
+
+            // --- LISTAS PARA OS FILTROS ---
+            // Listas dinâmicas baseadas nos dados dos chamados.
+            const statusList = ["Todos", ...new Set(ticketsData.map(t => t.status))];
+            const focalList = ["Todos", "Não Atribuído", ...new Set(ticketsData.map(t => t.nomeFocal).filter(f => f && f !== "Não Atribuído"))];
+
+            // --- ELEMENTOS DO DOM ---
+            const tableBody = document.getElementById('ticketTableBody');
+            const statusFilter = document.getElementById('statusFilter');
+            const focalFilter = document.getElementById('focalFilter');
+            const searchInput = document.getElementById('searchInput');
+            const modal = document.getElementById('editModal');
+            const modalContent = document.getElementById('modalContent');
+            const closeModalBtn = document.getElementById('closeModal');
+            const cancelModalBtn = document.getElementById('cancelModal');
+            const editForm = document.getElementById('editForm');
+
+            // --- FUNÇÕES ---
+
+            // Função para renderizar a tabela com os dados dos chamados
+            function renderTable(tickets) {
+                tableBody.innerHTML = '';
+                if (tickets.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-400">Nenhum chamado encontrado.</td></tr>`;
+                    return;
+                }
+                
+                const statusColorMap = {
+                    'Aberto': 'bg-blue-500/20 text-blue-300',
+                    'Em Análise': 'bg-yellow-500/20 text-yellow-300',
+                    'Pendente': 'bg-orange-500/20 text-orange-300',
+                    'Resolvido': 'bg-green-500/20 text-green-300',
+                };
+
+                tickets.forEach(ticket => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-700/50 cursor-pointer transition-colors duration-200';
+                    row.dataset.ticketId = ticket.id; // Atribui o ID do chamado à linha
+
+                    const statusColor = statusColorMap[ticket.status] || 'bg-gray-500/20 text-gray-300';
+
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">${ticket.id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${ticket.colaborador}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">${ticket.status}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${ticket.nomeFocal}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">${ticket.dataAbertura}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            // Função para popular os menus de filtro
+            function populateFilters() {
+                statusList.forEach(status => {
+                    statusFilter.innerHTML += `<option value="${status}">${status}</option>`;
+                });
+                focalList.forEach(focal => {
+                    focalFilter.innerHTML += `<option value="${focal}">${focal}</option>`;
+                });
+            }
+
+            // Função para aplicar filtros e busca e re-renderizar a tabela
+            function filterAndRender() {
+                const status = statusFilter.value;
+                const focal = focalFilter.value;
+                const searchTerm = searchInput.value.toLowerCase();
+
+                let filteredTickets = ticketsData;
+
+                if (status !== 'Todos') {
+                    filteredTickets = filteredTickets.filter(t => t.status === status);
+                }
+                if (focal !== 'Todos') {
+                    filteredTickets = filteredTickets.filter(t => t.nomeFocal === focal);
+                }
+                if (searchTerm) {
+                    filteredTickets = filteredTickets.filter(t => 
+                        t.id.toLowerCase().includes(searchTerm) || 
+                        t.colaborador.toLowerCase().includes(searchTerm)
+                    );
+                }
+                renderTable(filteredTickets);
+            }
+
+            // Funções para controlar o modal de edição
+            function openModal(ticket) {
+                // Preenche os campos do modal com os dados do chamado
+                document.getElementById('modalTicketId').textContent = ticket.id;
+                document.getElementById('modalColaborador').textContent = ticket.colaborador;
+                document.getElementById('modalMatricula').textContent = ticket.matricula;
+                document.getElementById('modalDataAbertura').textContent = ticket.dataAbertura;
+                document.getElementById('modalSolicitacao').textContent = ticket.solicitacao;
+                
+                // Preenche os campos editáveis
+                const modalStatus = document.getElementById('modalStatus');
+                modalStatus.innerHTML = '';
+                statusList.slice(1).forEach(s => modalStatus.innerHTML += `<option value="${s}" ${s === ticket.status ? 'selected' : ''}>${s}</option>`);
+
+                const modalFocal = document.getElementById('modalFocal');
+                modalFocal.innerHTML = '';
+                focalList.slice(1).forEach(f => modalFocal.innerHTML += `<option value="${f}" ${f === ticket.nomeFocal ? 'selected' : ''}>${f}</option>`);
+                
+                document.getElementById('modalArea').value = ticket.areaResponsavel;
+                document.getElementById('modalResolucao').value = ticket.resolucao;
+                document.getElementById('modalObservacao').value = ticket.observacao;
+
+                editForm.dataset.currentTicketId = ticket.id;
+                
+                // Exibe o modal
+                modal.classList.remove('hidden');
+                setTimeout(() => modalContent.classList.add('modal-enter-active'), 10);
+            }
+
+            function closeModal() {
+                modalContent.classList.remove('modal-enter-active');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+
+            // --- EVENT LISTENERS ---
+
+            // Listeners para os filtros e busca
+            statusFilter.addEventListener('change', filterAndRender);
+            focalFilter.addEventListener('change', filterAndRender);
+            searchInput.addEventListener('input', filterAndRender);
+
+            // Listener para abrir o modal ao clicar em uma linha da tabela
+            tableBody.addEventListener('click', (event) => {
+                const row = event.target.closest('tr');
+                if (row && row.dataset.ticketId) {
+                    const ticketId = row.dataset.ticketId;
+                    const ticket = ticketsData.find(t => t.id === ticketId);
+                    if (ticket) openModal(ticket);
+                }
+            });
+
+            // Listeners para fechar o modal
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelModalBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) closeModal();
+            });
+
+            // Listener para salvar as alterações do formulário do modal
+            editForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const ticketId = editForm.dataset.currentTicketId;
+                const ticketIndex = ticketsData.findIndex(t => t.id === ticketId);
+                
+                if (ticketIndex > -1) {
+                    // Atualiza os dados no array principal
+                    ticketsData[ticketIndex].status = document.getElementById('modalStatus').value;
+                    ticketsData[ticketIndex].nomeFocal = document.getElementById('modalFocal').value;
+                    ticketsData[ticketIndex].areaResponsavel = document.getElementById('modalArea').value;
+                    ticketsData[ticketIndex].resolucao = document.getElementById('modalResolucao').value;
+                    ticketsData[ticketIndex].observacao = document.getElementById('modalObservacao').value;
+                }
+                
+                closeModal();
+                filterAndRender(); // Re-renderiza a tabela para mostrar as alterações
+            });
+
+            // --- INICIALIZAÇÃO ---
+            populateFilters();
+            renderTable(ticketsData);
+        });
+    </script>
+</body>
+</html>
